@@ -94,16 +94,25 @@ with open(current_hash, "w") as filehash:
     for content_hash in result_hash:
         filehash.write("%s\n" % content_hash)
 
-# Open folder message
-print(f"Opening the folder: {check_dir_path}")
-
-# Open folder by Platform used
+# Attempt to open the output folder if on a GUI-based system
 if platform.system() == "Windows":
+    print(f"Opening the folder: {check_dir_path}")
     os.startfile(check_dir_path)
-elif platform.system() == "Darwin":
+elif platform.system() == "Darwin":  # macOS
+    print(f"Opening the folder: {check_dir_path}")
     subprocess.Popen(["open", check_dir_path])
-else:
-    subprocess.Popen(["xdg-open", check_dir_path])
+else:  # Linux and other Unix-like systems
+    # Check if a display server is running (for GUI environments)
+    if os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"):
+        try:
+            print(f"Opening the folder: {check_dir_path}")
+            subprocess.Popen(["xdg-open", check_dir_path])
+        except (FileNotFoundError, OSError):
+            print(f"Could not open folder. Please navigate to it manually: {check_dir_path}")
+    else:
+        # Headless environment (like a server), so just print the path to the output file.
+        print(f"Hash file saved at: {current_hash}")
+        print("Skipping folder opening on a headless system.")
 
 # Close program
 print("Stopping program... Thank you :)")
