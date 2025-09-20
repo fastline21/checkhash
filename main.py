@@ -15,11 +15,10 @@ check_dir_path = input("Directory: ")
 # Printing your choose directory
 print(f"Your directory to check files is {check_dir_path}")
 
-# Current dir
-current_dir = ''.join(check_dir_path.split('\\')[-1:])
-
-# Current hash file
-current_hash = f"{check_dir_path}\\{current_dir}.{option_hash}"
+# Get the base name of the directory (e.g., 'checkhash' from '.../checkhash')
+dir_basename = os.path.basename(os.path.normpath(check_dir_path))
+# Construct the output hash file path in a cross-platform way
+current_hash = os.path.join(check_dir_path, f"{dir_basename}.{option_hash}")
 
 # Validate hash option
 if option_hash not in ["md5", "sha256"]:
