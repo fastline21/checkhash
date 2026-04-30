@@ -6,9 +6,9 @@ CheckHash is a high-integrity Python utility for calculating and validating file
 
 - **Wide Algorithm Support**: Supports `md5`, `sha1`, `sha224`, `sha256`, `sha384`, `sha512`, `blake2b`, `blake2s`, and `crc32`.
 - **Intelligent Skip-on-Success**: Skips successful matches in the console to focus your attention on **CORRUPT** and **NEW** files.
-- **Proof-of-State Preservation**: In Standard Mode, the script preserves original hashes in the record file even if a file is found to be corrupted. This maintains historical context and "proof of state."
+- **Proof-of-State Preservation**: In Standard Mode, the script preserves original hashes in the record file even if a file is corrupted or missing. This maintains historical context and "proof of state."
 - **Special CRC32 Filename tagging**: Automatically detects CRC32 codes in filenames (e.g., `file [AABBCCDD].txt`) for validation, or tags unlabeled files by renaming them.
-- **Automated Reporting**: Logs detailed corruption events to `corrupted_report.md` with timestamps and source references.
+- **Automated Reporting**: Logs detailed corruption events to `corrupted_report.md` and missing files to `missing_report.md` with timestamps and source references.
 - **No Dependencies**: Built entirely using Python standard libraries.
 
 ## Installation
@@ -38,7 +38,8 @@ cd checkhash
    - Compares current files against the stored records.
    - Successful matches are hidden for clarity.
    - New files are appended to the hash file.
-   - Corrupted files are preserved in the hash file (keeping the original hash as proof) and logged to the report.
+   - Corrupted files are preserved in the hash file (keeping the original hash as proof) and logged to `corrupted_report.md`.
+   - Missing files are retained in the hash file (the record is not deleted) and logged to `missing_report.md`.
 
 ### Special CRC32 Mode
 1. **Filename Scan**: Searches filenames for 8-character hex codes in `[ ]`, `( )`, or `{ }`.
@@ -67,18 +68,26 @@ Files not exists now (Missing): 0
 
 Change detected. Updating records...
 Hash file 'backups.sha256' updated with 1 NEW entries.
-Corrupted entries PRESERVED in 'backups.sha256' for record keeping.
+Corrupted entries PRESERVED in 'backups.sha256' (using original hashes).
+Missing entries RETAINED in 'backups.sha256'.
 Corrupted files details logged in: backups/corrupted_report.md
+Missing files details logged in: backups/missing_report.md
 ```
 
 ## Reports
 
-All integrity failures are logged in `corrupted_report.md`:
+Integrity failures and missing files are logged in Markdown format:
 
+### `corrupted_report.md`
 | Timestamp | Source | Corrupted File |
 | --- | --- | --- |
 | 2026-04-16 18:40:22 | backups.sha256 | image.png |
 | 2026-04-16 18:50:11 | FILENAME_CRC | video [AABBCCDD].mkv |
+
+### `missing_report.md`
+| Timestamp | Source | Missing File |
+| --- | --- | --- |
+| 2026-04-30 22:50:15 | backups.sha256 | old_data.zip |
 
 ## License
 
