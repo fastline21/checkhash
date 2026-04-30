@@ -47,8 +47,8 @@ for root, dirs, files in os.walk(check_dir_path):
         # Exclude the output hash file from being hashed (relevant for non-crc32 modes)
         if option_hash != "crc32" and os.path.normpath(file_path) == os.path.normpath(current_hash):
              continue
-        # Also exclude report file if it exists
-        if file == "corrupted_report.md":
+        # Also exclude report files if they exist
+        if file in ["corrupted_report.md", "missing_report.md"]:
              continue
         files_to_process.append(file_path)
 
@@ -87,8 +87,10 @@ corrupted_log_entries = []
 matches = 0
 mismatches = 0
 new_files = 0
+new_file_results = []
 renamed_files = 0
 seen_files = set()
+missing_log_entries = []
 
 # Pattern for CRC32 in filename: [AABBCCDD] or (AABBCCDD)
 crc_pattern = re.compile(r'[\[\({]([0-9a-fA-F]{8})[\]\)}]')
@@ -167,6 +169,7 @@ for i, file_path in enumerate(files_to_process):
                         print(f"({(count/total_files)*100:6.2f}%) {count}: {result} [CORRUPT]".ljust(120))
                 else:
                     new_files += 1
+                    new_file_results.append(result)
                     result_hash.append(result)
                     print(f"({(count/total_files)*100:6.2f}%) {count}: {result} [NEW]".ljust(120))
             else:
@@ -182,6 +185,12 @@ if is_validation:
     for path in existing_hashes:
         if path not in seen_files:
             missing_files.append(path)
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            missing_log_entries.append({
+                "hashfile": os.path.basename(current_hash),
+                "file": path,
+                "timestamp": timestamp
+            })
 
 # Summary
 print("\n--- Final Summary ---")
@@ -199,17 +208,33 @@ else:
 # Updates
 if not is_crc_filename_mode:
     if is_validation:
-        count_mismatch = (len(existing_hashes) != total_files)
-        if count_mismatch or new_files > 0 or mismatches > 0 or len(missing_files) > 0:
-            print("\nChange detected. Updating records...")
-            with open(current_hash, "w") as filehash:
-                for content_hash in result_hash:
-                    filehash.write("%s\n" % content_hash)
-            if new_files > 0: print(f"Hash file updated with {new_files} NEW entries.")
-            if mismatches > 0: print(f"Corrupted entries PRESERVED in record keeping.")
-        else:
+        if new_files > 0:
+            print(f"\n{new_files} new files detected. Appending to {os.path.basename(current_hash)}...")
+            try:
+                # Ensure we have a newline before appending if the file doesn't have one
+                with open(current_hash, "rb+") as f:
+                    f.seek(0, 2)
+                    if f.tell() > 0:
+                        f.seek(-1, 2)
+                        if f.read(1) != b'\n':
+                            f.write(b'\n')
+                with open(current_hash, "a") as f:
+                    for entry in new_file_results:
+                        f.write(entry + "\n")
+                print(f"Hash file updated with {new_files} NEW entries.")
+            except Exception as e:
+                print(f"Error updating hash file: {e}")
+        
+        if mismatches > 0:
+            print(f"Corrupted entries PRESERVED in {os.path.basename(current_hash)} (using original hashes).")
+        
+        if len(missing_files) > 0:
+            print(f"Missing entries RETAINED in {os.path.basename(current_hash)}.")
+
+        if new_files == 0 and mismatches == 0 and len(missing_files) == 0:
             print("\nNo changes detected. Integrity preserved.")
     else:
+        # Initial creation
         if total_files > 0:
             with open(current_hash, "w") as filehash:
                 for content_hash in result_hash:
@@ -227,6 +252,18 @@ if mismatches > 0:
         for entry in corrupted_log_entries:
             f.write(f"| {entry['timestamp']} | {source} | {entry['file']} |\n")
     print(f"Corrupted files details logged in: {report_file}")
+
+# Missing Report
+if len(missing_log_entries) > 0:
+    report_file = os.path.join(check_dir_path, "missing_report.md")
+    with open(report_file, "a") as f:
+        if not os.path.exists(report_file) or os.path.getsize(report_file) == 0:
+            f.write("| Timestamp | Source | Missing File |\n")
+            f.write("| --- | --- | --- |\n")
+        source = os.path.basename(current_hash)
+        for entry in missing_log_entries:
+            f.write(f"| {entry['timestamp']} | {source} | {entry['file']} |\n")
+    print(f"Missing files details logged in: {report_file}")
 
 # Open folder
 if platform.system() == "Windows":
